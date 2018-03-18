@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# set -ue$-
+
+cd orig
+for file in * ; do
+	if echo "$file" | egrep -q '\.h$'; then
+		#echo ".h file found: $file"
+		addguard=0
+		guardname=`echo "$file" | tr '.' '_' |  tr [:lower:] [:upper:]`
+		firstline=`egrep '^[^/][^/].*\w' "$file" | head -1`
+		lastline=`egrep '^[^/][^/].*\w' "$file" | tail -1`
+		#echo $firstline
+		#echo $lastline
+		if echo "$firstline" | grep -qv "#ifndef"; then
+			#echo "#ifndef is missing"
+			addguard=1
+		else
+			symbol=`echo "$firstline" | sed -e 's/.*#ifndef[ 	]\+\([a-zA-Z0-9_]\+\).*/\1/'`
+			if [ "$symbol" != "$guardname" ]; then
+				#echo "Expected $guardname, got $symbol."
+				addguard=1
+			fi
+		fi
+		if echo "$lastline" | grep -qv "#endif"; then
+			#echo "#endif is missing"
+			addguard=1
+		fi
+		if [ $addguard -gt 0 ]; then
+			echo "Header guard needs to be added to $file"
+			echo "#ifndef $guardname" > "../new/$file"
+			echo "#define $guardname 1" >> "../new/$file"
+			cat "$file" >> "../new/$file"
+			echo "#endif" >> "../new/$file"
+		else
+			echo "Copying $file."
+			cp "$file" ../new/
+		fi
+	else
+		echo "Copying $file."
+		cp "$file" ../new/
+	fi
+done
